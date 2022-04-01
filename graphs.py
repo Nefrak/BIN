@@ -15,9 +15,24 @@ class GraphColoringProblem:
 
         # initialize instance variables:
         if filePath != "":
-            self.graph, self.fixed_indexes = self.getGraph(filePath)
+            self.graph, sudoku = self.getGraph(filePath)
+
+        self.fixed_indexes = []
+
+        for x in range(len(sudoku)):
+            for y in range(len(sudoku[x])):
+                if sudoku[x][y] != 0:
+                    if y < 3:
+                        self.fixed_indexes.append(x * 3 + y)
+                    elif y < 6:
+                        self.fixed_indexes.append(24 + x * 3 + y)
+                    elif y < 9:
+                        self.fixed_indexes.append(48 + x * 3 + y)
         
-        print(self.graph)
+        self.sudoku = []
+
+        for l in sudoku:
+            self.sudoku += l
 
         self.hardConstraintPenalty = hardConstraintPenalty
 
@@ -37,7 +52,6 @@ class GraphColoringProblem:
     def getGraph(self, file):
         graph = nx.Graph()
         sudoku = []
-        fixed_indexes = []
         nodes = 81
 
         with open(file) as f:
@@ -46,16 +60,6 @@ class GraphColoringProblem:
                 for k, v in doc.items():
                     if k == "Sudoku":
                         sudoku = v
-
-        for x in range(len(sudoku)):
-            for y in range(len(sudoku[x])):
-                if sudoku[x][y] != 0:
-                    if y < 3:
-                        fixed_indexes.append(x * 3 + y)
-                    elif y < 6:
-                        fixed_indexes.append(24 + x * 3 + y)
-                    elif y < 9:
-                        fixed_indexes.append(48 + x * 3 + y)
 
         for i in range(nodes):
             graph.add_node(i)
@@ -82,7 +86,7 @@ class GraphColoringProblem:
                         for m in range(l + 2 * 27, l + 2 * 27 + 3):
                             graph.add_edge(n, m)
             
-        return graph, fixed_indexes
+        return graph, sudoku
 
     def getCost(self, colorArrangement):
         """
@@ -118,11 +122,28 @@ class GraphColoringProblem:
 
         return violations
 
+    def getBlock(self, index):
+        return index // 9
+
+    def isInViolationInBlock(self, index, colorArrangement):
+        block = self.getBlock(index)
+        for i in range(block * 9, (block + 1) * 9):
+                if i != index and colorArrangement[index] == colorArrangement[i]:
+                    return i
+        return -1
+
     def isInViolation(self, index, colorArrangement):
         for i in range(len(colorArrangement)):
                 if i != index and colorArrangement[index] == colorArrangement[i]:
                     return i
         return -1
+
+    def isFixed(self, index):
+        if index > 0:
+            for i in self.fixed_indexes:
+                    if i == index:
+                        return True
+        return False
 
     def getNumberOfColors(self, colorArrangement):
         """

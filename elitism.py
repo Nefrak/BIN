@@ -1,7 +1,7 @@
 from deap import tools
 import random
 
-def eaSimpleWithElitism(popsize, toolbox, cxpb, mutpb, runs, ngen, stats=None,
+def eaSimpleWithElitism(popsize, toolbox, cxpb, mutpb, runs, ngen, sudoku, stats=None,
              halloffame=None, verbose=__debug__):
     """This algorithm is similar to DEAP eaSimple() algorithm, with the modification that
     halloffame is used to implement an elitism mechanism. The individuals contained in the

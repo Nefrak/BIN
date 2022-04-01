@@ -4,6 +4,7 @@ from deap import tools
 
 import random
 import numpy
+import collections
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -15,15 +16,18 @@ import graphs
 HARD_CONSTRAINT_PENALTY = 10  # the penalty factor for a hard-constraint violation
 FILE_PATH = "params.yaml"
 SHOW_GRAPH = False
-SHOW_CONV_STAT = False
+SHOW_CONV_STAT = True
 SHOW_BOX_STAT = False
 
 # Genetic Algorithm constants:
 POPULATION_SIZE = 100
 P_CROSSOVER = 0.9  # probability for crossover
-P_MUTATION = 0.1   # probability for mutating an individual
-RUNS = 1
-MAX_GENERATIONS = 100
+P_MUTATION = 0.7   # probability for mutating an individual
+P_M_SWITCH = 0.8    # probability for preforming switch in all mutations
+P_M_CONFLICT = 0.4  # probability for preforming switch conflicted nodes in all mutations
+P_M_SHIFT = 0.0     # probability for preforming shift of block in all mutations
+RUNS = 3
+MAX_GENERATIONS = 2000
 HALL_OF_FAME_SIZE = 5
 MAX_COLORS = 9
 
@@ -43,10 +47,31 @@ creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
 creator.create("Individual", list, fitness=creator.FitnessMin)
 
 # create an operator that randomly returns an integer in the range of participating colors:
-toolbox.register("Integers", random.randint, 0, MAX_COLORS - 1)
+toolbox.register("Integers", random.randint, 1, MAX_COLORS)
+
+def getUnusedNumbers(block):
+    num = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    for i in block:
+        if i != 0:
+            num.remove(i)
+    return num
+
+def createIndividual(individual):
+    ind = individual(i for i in gcp.sudoku)
+    for i in range(0,9):
+        block = ind[i * 9:(i + 1) * 9]
+        unusedNums = getUnusedNumbers(block)
+        for n in range(len(block)):
+            if block[n] == 0:
+                ranNum = random.choice(unusedNums)
+                unusedNums.remove(ranNum)
+                block[n] = ranNum
+        ind[i * 9:(i + 1) * 9] = block
+    return ind
 
 # create the individual operator to fill up an Individual instance:
-toolbox.register("individualCreator", tools.initRepeat, creator.Individual, toolbox.Integers, len(gcp))
+#toolbox.register("individualCreator", tools.initRepeat, creator.Individual, toolbox.Integers, len(gcp))
+toolbox.register("individualCreator", createIndividual, creator.Individual)
 
 # create the population operator to generate a list of individuals:
 toolbox.register("populationCreator", tools.initRepeat, list, toolbox.individualCreator)
@@ -56,28 +81,63 @@ def getCost(individual):
     return gcp.getCost(individual),  # return a tuple
 
 #custom genetic functions
-def mutateConflictNodes(individual, low, up, indpb):
-    for index in range(len(individual)):
-        if gcp.isInViolation(index, individual) != -1 and random.random() < indpb:
-            individual[index] = random.randrange(low, up + 1)
+def allMutations(individual, mutateSwitchChance, mutateConflictChance, mutateShiftChance, indpb):
+    prob = random.random()
+    if prob < indpb:
+        if prob < mutateSwitchChance:
+            individual = mutateSwitchNodes(individual, indpb)
+        if prob < mutateConflictChance:
+            individual = mutateSwitchConflictNodes(individual, indpb)
+        if prob < mutateShiftChance:
+            individual = mutateShiftBlock(individual, 1, indpb)
     return individual
 
-def mutateSwitchConflictNodes(individual, indpb):
+#custom genetic functions
+def mutateSwitchNodes(individual, indpb):
     for index in range(len(individual)):
-        confIndex = gcp.isInViolation(index, individual)
-        if confIndex != -1 and random.random() < indpb:
+        blockIndex = gcp.getBlock(index)
+        confIndex = random.randrange(9 * blockIndex, 9 * (blockIndex + 1))
+        isFixed = gcp.isFixed(index) and gcp.isFixed(confIndex)
+        if not isFixed and confIndex != -1 and random.random() < indpb:
             savedColor = individual[index]
             individual[index] = individual[confIndex]
             individual[confIndex] = savedColor
     return individual
 
-def crossNoConflict(ind1, ind2):
-    for index in range(len(ind1)):
-        if gcp.isInViolation(index, ind1) != -1:
-            ind1[index] = ind2[index]
-    for index in range(len(ind2)):
-        if gcp.isInViolation(index, ind2) != -1:
-            ind2[index] = ind1[index]
+def mutateSwitchConflictNodes(individual, indpb):
+    for index in range(len(individual)):
+        confIndex = gcp.isInViolationInBlock(index, individual)
+        isFixed = gcp.isFixed(index) and gcp.isFixed(confIndex)
+        if not isFixed and confIndex != -1 and random.random() < indpb:
+            savedColor = individual[index]
+            individual[index] = individual[confIndex]
+            individual[confIndex] = savedColor
+    return individual
+
+#TODO protect fixed indexes gl
+def mutateShiftBlock(individual, rotations, indpb):
+    for index in range(len(individual)):
+        blockIndex = gcp.getBlock(index)
+        if random.random() < indpb:
+            blockIndex = gcp.getBlock(index)
+            block = collections.deque(individual[blockIndex * 9:(blockIndex + 1) * 9])
+            block.rotate(rotations)
+            individual[blockIndex * 9:(blockIndex + 1) * 9] = list(block)
+    return individual
+
+def crossOnePoint(ind1, ind2):
+    crossPoint = random.randrange(1, 9)
+    newind1 = ind1.copy()
+    ind1[0:crossPoint * 9] = ind2[0:crossPoint * 9]
+    ind2[0:crossPoint * 9] = newind1[0:crossPoint * 9]
+    return (ind1, ind2)
+
+def crossTwoPoints(ind1, ind2):
+    crossPoint1 = random.randrange(1, 7)
+    crossPoint2 = random.randrange(crossPoint1 + 1, 9)
+    newind1 = ind1.copy()
+    ind1[crossPoint1 * 9:crossPoint2 * 9] = ind2[crossPoint1 * 9:crossPoint2 * 9]
+    ind2[crossPoint1 * 9:crossPoint2 * 9] = newind1[crossPoint1 * 9:crossPoint2 * 9]
     return (ind1, ind2)
 
 toolbox.register("evaluate", getCost)
@@ -86,13 +146,14 @@ toolbox.register("evaluate", getCost)
 toolbox.register("select", tools.selTournament, tournsize=2)
 #toolbox.register("select", tools.selBest)
 
-#toolbox.register("mate", tools.cxOnePoint)
-toolbox.register("mate", tools.cxTwoPoint)
-#toolbox.register("mate", crossNoConflict)
+#toolbox.register("mate", crossOnePoint)
+toolbox.register("mate", crossTwoPoints)
 
-#toolbox.register("mutate", tools.mutUniformInt, low=0, up=MAX_COLORS - 1, indpb=1.0/len(gcp))
-#toolbox.register("mutate", mutateConflictNodes, low=0, up=MAX_COLORS - 1, indpb=1.0/len(gcp))
-toolbox.register("mutate", mutateSwitchConflictNodes, indpb=1.0/len(gcp))
+toolbox.register("mutate", allMutations, mutateSwitchChance=P_M_SWITCH, mutateConflictChance=P_M_CONFLICT, 
+mutateShiftChance=P_M_SHIFT, indpb=1.0/len(gcp))
+#toolbox.register("mutate", mutateSwitchNodes, indpb=1.0/len(gcp))
+#toolbox.register("mutate", mutateShiftBlock, rotations=1, indpb=1.0/len(gcp))
+#toolbox.register("mutate", mutateSwitchConflictNodes, indpb=1.0/len(gcp))
 
 def showConv(logbooks, runs):
     # extract statistics:
@@ -173,7 +234,7 @@ def main():
 
     # perform the Genetic Algorithm flow with elitism:
     logbooks = elitism.eaSimpleWithElitism(POPULATION_SIZE, toolbox, cxpb=P_CROSSOVER, mutpb=P_MUTATION, runs=RUNS,
-                                              ngen=MAX_GENERATIONS, stats=stats, halloffame=hofs, verbose=False)
+                                              ngen=MAX_GENERATIONS, sudoku=gcp.sudoku, stats=stats, halloffame=hofs, verbose=False)
 
     printResult(hofs, logbooks, RUNS)
 
