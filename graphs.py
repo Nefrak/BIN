@@ -18,21 +18,20 @@ class GraphColoringProblem:
             self.graph, sudoku = self.getGraph(filePath)
 
         self.fixed_indexes = []
+        self.sudoku = [0] * len(sudoku) * len(sudoku[0])
 
         for x in range(len(sudoku)):
             for y in range(len(sudoku[x])):
                 if sudoku[x][y] != 0:
                     if y < 3:
                         self.fixed_indexes.append(x * 3 + y)
+                        self.sudoku[x * 3 + y] = sudoku[x][y]
                     elif y < 6:
                         self.fixed_indexes.append(24 + x * 3 + y)
+                        self.sudoku[24 + x * 3 + y] = sudoku[x][y]
                     elif y < 9:
                         self.fixed_indexes.append(48 + x * 3 + y)
-        
-        self.sudoku = []
-
-        for l in sudoku:
-            self.sudoku += l
+                        self.sudoku[48 + x * 3 + y] = sudoku[x][y]
 
         self.hardConstraintPenalty = hardConstraintPenalty
 
@@ -139,7 +138,7 @@ class GraphColoringProblem:
         return -1
 
     def isFixed(self, index):
-        if index > 0:
+        if index >= 0:
             for i in self.fixed_indexes:
                     if i == index:
                         return True

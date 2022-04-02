@@ -4,7 +4,7 @@ from deap import tools
 
 import random
 import numpy
-import collections
+from collections import deque
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -15,19 +15,19 @@ import graphs
 # problem constants:
 HARD_CONSTRAINT_PENALTY = 10  # the penalty factor for a hard-constraint violation
 FILE_PATH = "params.yaml"
-SHOW_GRAPH = False
-SHOW_CONV_STAT = True
+SHOW_GRAPH = True
+SHOW_CONV_STAT = False
 SHOW_BOX_STAT = False
 
 # Genetic Algorithm constants:
-POPULATION_SIZE = 100
-P_CROSSOVER = 0.9  # probability for crossover
-P_MUTATION = 0.7   # probability for mutating an individual
-P_M_SWITCH = 0.8    # probability for preforming switch in all mutations
-P_M_CONFLICT = 0.4  # probability for preforming switch conflicted nodes in all mutations
-P_M_SHIFT = 0.0     # probability for preforming shift of block in all mutations
-RUNS = 3
-MAX_GENERATIONS = 2000
+POPULATION_SIZE = 200
+P_CROSSOVER = 0.8  # probability for crossover
+P_MUTATION = 0.8   # probability for mutating an individual
+P_M_SWITCH = 0.7   # probability for performing switch in all mutations
+P_M_CONFLICT = 0.7  # probability for performing switch conflicted nodes in all mutations
+P_M_SHIFT = 0.8     # probability for performing shift of block in all mutations
+RUNS = 4
+MAX_GENERATIONS = 2500
 HALL_OF_FAME_SIZE = 5
 MAX_COLORS = 9
 
@@ -89,7 +89,7 @@ def allMutations(individual, mutateSwitchChance, mutateConflictChance, mutateShi
         if prob < mutateConflictChance:
             individual = mutateSwitchConflictNodes(individual, indpb)
         if prob < mutateShiftChance:
-            individual = mutateShiftBlock(individual, 1, indpb)
+            individual = mutateShiftBlock(individual, indpb)
     return individual
 
 #custom genetic functions
@@ -114,15 +114,45 @@ def mutateSwitchConflictNodes(individual, indpb):
             individual[confIndex] = savedColor
     return individual
 
+def isFixed(index, indexList):
+        if index >= 0:
+            for i in indexList:
+                    if i == index:
+                        return True
+        return False
+
+def blockRotation(oriBlock, indexList):
+    if len(indexList) >= len(oriBlock):
+        return oriBlock
+    else:
+        newBlock = deque(oriBlock)
+        newBlock.rotate(1)
+        newBlock = list(newBlock)
+        n = len(newBlock) - 1
+        while n > 0:
+            if isFixed(n, indexList) and not isFixed(n - 1, indexList):
+                savedColor = newBlock[0]
+                newBlock[0] = newBlock[n]
+                newBlock[n] = savedColor
+                break
+            n -= 1
+        for i in range(len(newBlock) - 1):
+            if isFixed(i, indexList):
+                savedColor = newBlock[i]
+                newBlock[i] = newBlock[i+1]
+                newBlock[i+1] = savedColor
+    return newBlock
+
 #TODO protect fixed indexes gl
-def mutateShiftBlock(individual, rotations, indpb):
+def mutateShiftBlock(individual, indpb):
     for index in range(len(individual)):
         blockIndex = gcp.getBlock(index)
         if random.random() < indpb:
             blockIndex = gcp.getBlock(index)
-            block = collections.deque(individual[blockIndex * 9:(blockIndex + 1) * 9])
-            block.rotate(rotations)
-            individual[blockIndex * 9:(blockIndex + 1) * 9] = list(block)
+            oriBlock = individual[blockIndex * 9:(blockIndex + 1) * 9]
+            indexList = [(i - blockIndex * 9) for i in range(blockIndex * 9, (blockIndex + 1) * 9) if gcp.isFixed(i)]
+            newBlock = blockRotation(oriBlock, indexList)
+            individual[blockIndex * 9:(blockIndex + 1) * 9] = newBlock
     return individual
 
 def crossOnePoint(ind1, ind2):
@@ -152,7 +182,7 @@ toolbox.register("mate", crossTwoPoints)
 toolbox.register("mutate", allMutations, mutateSwitchChance=P_M_SWITCH, mutateConflictChance=P_M_CONFLICT, 
 mutateShiftChance=P_M_SHIFT, indpb=1.0/len(gcp))
 #toolbox.register("mutate", mutateSwitchNodes, indpb=1.0/len(gcp))
-#toolbox.register("mutate", mutateShiftBlock, rotations=1, indpb=1.0/len(gcp))
+#toolbox.register("mutate", mutateShiftBlock, indpb=1.0/len(gcp))
 #toolbox.register("mutate", mutateSwitchConflictNodes, indpb=1.0/len(gcp))
 
 def showConv(logbooks, runs):
@@ -192,6 +222,16 @@ def showBox(logbooks, runs):
     plt.ylabel('Outputs')
     plt.title('Boxplot')
 
+def printSudoku(Sudoku):
+    for row in range(9):
+        print("")
+        for subBlock in range(0, 3):
+            for number in range(0, 3):
+                position = number + subBlock * 27 + 3 * row
+                print("|", end =" ")
+                print(Sudoku[position], end =" ")
+        print("|", end =" ")
+
 def printResult(hofs, logbooks, runs):
     # print info for best solution found:
     best = hofs[0].items[0]
@@ -214,8 +254,7 @@ def printResult(hofs, logbooks, runs):
 
     # plot best solution:
     if SHOW_GRAPH:
-        plt.figure(3)
-        gcp.plotGraph(best)
+        printSudoku(best)
 
     plt.show()
 
