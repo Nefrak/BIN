@@ -1,4 +1,4 @@
-# BIN - Vizualizace návrhu celulárního automatu
+# BIN - Optimalizace řešení hry Sudoku genetickým algoritmem
 
 ## Zadání
 Hra Sudoku je tvořena tabulkou velikosti 9x9 sestávající z devíti menších tabulek (čtverců) velikosti 3x3, částečně předvyplněnou číslicemi of 1 do 9. Cílem hry je volná místa v tabulce doplnit takovým způsobem, aby žádný z řádků, sloupců, ani čtverců neobsahoval stejnou číslici dvakrát. Jedním ze způsobů jak tuto hru řešit je použití genetického algoritmu.
