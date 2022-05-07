@@ -14,25 +14,24 @@ import graphs
 
 # problem constants:
 HARD_CONSTRAINT_PENALTY = 10  # the penalty factor for a hard-constraint violation
-FILE_PATH = "params.yaml"
-SHOW_GRAPH = True
-SHOW_CONV_STAT = False
-SHOW_BOX_STAT = False
+FILE_PATH = "sudoku.yaml"
+PRINT_SUDOKU = True
+SHOW_CONV_STAT = True
+SHOW_BOX_STAT = True
 
 # Genetic Algorithm constants:
-POPULATION_SIZE = 200
-P_CROSSOVER = 0.8  # probability for crossover
-P_MUTATION = 0.8   # probability for mutating an individual
-P_M_SWITCH = 0.7   # probability for performing switch in all mutations
+POPULATION_SIZE = 150
+P_CROSSOVER = 0.2  # probability for crossover
+P_MUTATION = 0.9   # probability for mutating an individual
+P_M_SWITCH = 0.5   # probability for performing switch in all mutations
 P_M_CONFLICT = 0.7  # probability for performing switch conflicted nodes in all mutations
-P_M_SHIFT = 0.8     # probability for performing shift of block in all mutations
-RUNS = 4
-MAX_GENERATIONS = 2500
+P_M_SHIFT = 0.1     # probability for performing shift of block in all mutations
+RUNS = 1
+MAX_GENERATIONS = 10000
 HALL_OF_FAME_SIZE = 5
-MAX_COLORS = 9
 
 # set the random seed:
-RANDOM_SEED = 42
+RANDOM_SEED = 124
 random.seed(RANDOM_SEED)
 
 toolbox = base.Toolbox()
@@ -47,7 +46,7 @@ creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
 creator.create("Individual", list, fitness=creator.FitnessMin)
 
 # create an operator that randomly returns an integer in the range of participating colors:
-toolbox.register("Integers", random.randint, 1, MAX_COLORS)
+toolbox.register("Integers", random.randint, 1, 9)
 
 def getUnusedNumbers(block):
     num = [1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -56,6 +55,7 @@ def getUnusedNumbers(block):
             num.remove(i)
     return num
 
+#creating new individual (no duplicit numbers allowed)
 def createIndividual(individual):
     ind = individual(i for i in gcp.sudoku)
     for i in range(0,9):
@@ -97,23 +97,25 @@ def mutateSwitchNodes(individual, indpb):
     for index in range(len(individual)):
         blockIndex = gcp.getBlock(index)
         confIndex = random.randrange(9 * blockIndex, 9 * (blockIndex + 1))
-        isFixed = gcp.isFixed(index) and gcp.isFixed(confIndex)
+        isFixed = gcp.isFixed(index) or gcp.isFixed(confIndex)
         if not isFixed and confIndex != -1 and random.random() < indpb:
             savedColor = individual[index]
             individual[index] = individual[confIndex]
             individual[confIndex] = savedColor
     return individual
 
+#mutating by switching conflict nodes
 def mutateSwitchConflictNodes(individual, indpb):
     for index in range(len(individual)):
         confIndex = gcp.isInViolationInBlock(index, individual)
-        isFixed = gcp.isFixed(index) and gcp.isFixed(confIndex)
+        isFixed = gcp.isFixed(index) or gcp.isFixed(confIndex)
         if not isFixed and confIndex != -1 and random.random() < indpb:
             savedColor = individual[index]
             individual[index] = individual[confIndex]
             individual[confIndex] = savedColor
     return individual
 
+# check if number is fixed (non mutable)
 def isFixed(index, indexList):
         if index >= 0:
             for i in indexList:
@@ -121,6 +123,7 @@ def isFixed(index, indexList):
                         return True
         return False
 
+# rotating given block (then returning fixed numbers on their spot)
 def blockRotation(oriBlock, indexList):
     if len(indexList) >= len(oriBlock):
         return oriBlock
@@ -143,7 +146,7 @@ def blockRotation(oriBlock, indexList):
                 newBlock[i+1] = savedColor
     return newBlock
 
-#TODO protect fixed indexes gl
+#mutating by shifting block with node
 def mutateShiftBlock(individual, indpb):
     for index in range(len(individual)):
         blockIndex = gcp.getBlock(index)
@@ -155,19 +158,21 @@ def mutateShiftBlock(individual, indpb):
             individual[blockIndex * 9:(blockIndex + 1) * 9] = newBlock
     return individual
 
+#crossing one point on subgraphs
 def crossOnePoint(ind1, ind2):
     crossPoint = random.randrange(1, 9)
-    newind1 = ind1.copy()
+    newind1 = ind1[0:crossPoint * 9].copy()
     ind1[0:crossPoint * 9] = ind2[0:crossPoint * 9]
-    ind2[0:crossPoint * 9] = newind1[0:crossPoint * 9]
+    ind2[0:crossPoint * 9] = newind1
     return (ind1, ind2)
 
+#crossing two point on subgraphs
 def crossTwoPoints(ind1, ind2):
     crossPoint1 = random.randrange(1, 7)
     crossPoint2 = random.randrange(crossPoint1 + 1, 9)
-    newind1 = ind1.copy()
+    newind1 = ind1[crossPoint1 * 9:crossPoint2 * 9].copy()
     ind1[crossPoint1 * 9:crossPoint2 * 9] = ind2[crossPoint1 * 9:crossPoint2 * 9]
-    ind2[crossPoint1 * 9:crossPoint2 * 9] = newind1[crossPoint1 * 9:crossPoint2 * 9]
+    ind2[crossPoint1 * 9:crossPoint2 * 9] = newind1
     return (ind1, ind2)
 
 toolbox.register("evaluate", getCost)
@@ -181,10 +186,8 @@ toolbox.register("mate", crossTwoPoints)
 
 toolbox.register("mutate", allMutations, mutateSwitchChance=P_M_SWITCH, mutateConflictChance=P_M_CONFLICT, 
 mutateShiftChance=P_M_SHIFT, indpb=1.0/len(gcp))
-#toolbox.register("mutate", mutateSwitchNodes, indpb=1.0/len(gcp))
-#toolbox.register("mutate", mutateShiftBlock, indpb=1.0/len(gcp))
-#toolbox.register("mutate", mutateSwitchConflictNodes, indpb=1.0/len(gcp))
 
+# show statistics
 def showConv(logbooks, runs):
     # extract statistics:
     minAvg = numpy.array(logbooks[0].select("min"))
@@ -210,18 +213,21 @@ def showConv(logbooks, runs):
     plt.ylabel('Fitness')
     plt.title('Konvergencni krivka')
 
+# show boxplot
 def showBox(logbooks, runs):
     lastEval = [logbooks[0].select("avg")[-1]]
+    lastEvalMin = [logbooks[0].select("min")[-1]]
     for i in range(1, runs):
-        lastEval.append(logbooks[i].select("avg")[-1])
+       lastEval.append(logbooks[i].select("avg")[-1])
+       lastEvalMin.append(logbooks[i].select("min")[-1])
 
     plt.figure(2)
-    x1 = lastEval
-    plt.boxplot([x1], labels=['x1'], notch=True)
+    plt.boxplot([lastEval, lastEvalMin], labels=['avg', 'min'])
     plt.xlabel('Fitness')
     plt.ylabel('Outputs')
     plt.title('Boxplot')
 
+#print final sudoku
 def printSudoku(Sudoku):
     for row in range(9):
         print("")
@@ -232,6 +238,7 @@ def printSudoku(Sudoku):
                 print(Sudoku[position], end =" ")
         print("|", end =" ")
 
+# show results
 def printResult(hofs, logbooks, runs):
     # print info for best solution found:
     best = hofs[0].items[0]
@@ -253,7 +260,7 @@ def printResult(hofs, logbooks, runs):
         showBox(logbooks, runs)
 
     # plot best solution:
-    if SHOW_GRAPH:
+    if PRINT_SUDOKU:
         printSudoku(best)
 
     plt.show()

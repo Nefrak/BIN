@@ -95,7 +95,7 @@ class GraphColoringProblem:
         :return: Calculated cost of the arrangement.
         """
 
-        return self.hardConstraintPenalty * self.getViolationsCount(colorArrangement) + self.getNumberOfColors(colorArrangement)
+        return self.hardConstraintPenalty * self.getViolationsCount(colorArrangement)
 
     def getViolationsCount(self, colorArrangement):
         """
