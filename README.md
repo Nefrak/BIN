@@ -5,6 +5,16 @@ Hra Sudoku je tvořena tabulkou velikosti 9x9 sestávající z devíti menších
 
 Při řešení se inspirujte metodami řešení problému problému barvení grafu (číslice představují barvy, pole tabulky představují vrcholy, pole na stejném řádku, sloupci a čtverci jsou spojeny hranami) a proveďte sady experimentů využívajících různé varianty genetických operátorů (selekce, křížení atd.).
 
+## Knihovny
+- deap
+- random
+- numpy
+- collections
+- matplotlib
+- seaborn
+- networkx
+- yaml
+
 ## Spuštění
 python solveGraphColor.py
 
