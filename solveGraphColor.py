@@ -21,11 +21,11 @@ SHOW_BOX_STAT = True
 
 # Genetic Algorithm constants:
 POPULATION_SIZE = 100
-P_CROSSOVER = 0.9  # probability for crossover
-P_MUTATION = 0.7   # probability for mutating an individual
-P_M_SWITCH = 0.1   # probability for performing switch in all mutations
-P_M_CONFLICT_SWITCH = 0.2  # probability for performing switch conflicted nodes in all mutations
-P_M_SHIFT = 0.01     # probability for performing shift of block in all mutations
+P_CROSSOVER = 0
+P_MUTATION = 0.7   
+P_M_SWITCH = 0.1   
+P_M_CONFLICT_SWITCH = 0.2 
+P_M_SHIFT = 0.01     
 RUNS = 15
 MAX_GENERATIONS = 1000
 HALL_OF_FAME_SIZE = 5
@@ -33,6 +33,9 @@ HALL_OF_FAME_SIZE = 5
 # set the random seed:
 RANDOM_SEED = 123
 random.seed(RANDOM_SEED)
+
+#results
+SAVEFILE = 'experiments/result2'
 
 toolbox = base.Toolbox()
 
@@ -215,6 +218,8 @@ def showBox(logbooks, runs):
     for i in range(1, runs):
        lastEval.append(logbooks[i].select("avg")[-1])
        lastEvalMin.append(logbooks[i].select("min")[-1])
+
+    numpy.save(SAVEFILE, numpy.array(lastEvalMin))
 
     plt.figure(2)
     plt.boxplot([lastEval, lastEvalMin], labels=['avg', 'min'])

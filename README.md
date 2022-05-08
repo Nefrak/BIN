@@ -14,6 +14,7 @@ Při řešení se inspirujte metodami řešení problému problému barvení gra
 - seaborn
 - networkx
 - yaml
+- scipy.stats
 
 ## Spuštění
 python solveGraphColor.py
@@ -36,6 +37,9 @@ Parametry je možné upravit v solveGraphColor.py
 - generace: MAX_GENERATIONS
 - počet nejlepších jedinců z předchozí generace: HALL_OF_FAME_SIZE
 - seed: RANDOM_SEED
+
+## Další obsah
+V repozitáři 'experiments' jsou umístěny experimenty, soubor staticTest.py slouží k otestování hypotéz.
 
 ## Autor
 Jaromír Franěk (xfrane16)
