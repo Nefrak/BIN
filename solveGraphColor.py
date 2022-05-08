@@ -20,18 +20,18 @@ SHOW_CONV_STAT = True
 SHOW_BOX_STAT = True
 
 # Genetic Algorithm constants:
-POPULATION_SIZE = 150
-P_CROSSOVER = 0.2  # probability for crossover
-P_MUTATION = 0.9   # probability for mutating an individual
-P_M_SWITCH = 0.5   # probability for performing switch in all mutations
-P_M_CONFLICT = 0.7  # probability for performing switch conflicted nodes in all mutations
-P_M_SHIFT = 0.1     # probability for performing shift of block in all mutations
-RUNS = 1
-MAX_GENERATIONS = 10000
+POPULATION_SIZE = 100
+P_CROSSOVER = 0.9  # probability for crossover
+P_MUTATION = 0.7   # probability for mutating an individual
+P_M_SWITCH = 0.1   # probability for performing switch in all mutations
+P_M_CONFLICT_SWITCH = 0.2  # probability for performing switch conflicted nodes in all mutations
+P_M_SHIFT = 0.01     # probability for performing shift of block in all mutations
+RUNS = 15
+MAX_GENERATIONS = 1000
 HALL_OF_FAME_SIZE = 5
 
 # set the random seed:
-RANDOM_SEED = 124
+RANDOM_SEED = 123
 random.seed(RANDOM_SEED)
 
 toolbox = base.Toolbox()
@@ -81,38 +81,36 @@ def getCost(individual):
     return gcp.getCost(individual),  # return a tuple
 
 #custom genetic functions
-def allMutations(individual, mutateSwitchChance, mutateConflictChance, mutateShiftChance, indpb):
-    prob = random.random()
-    if prob < indpb:
+def allMutations(individual, mutateSwitchChance, mutateConflictChance, mutateShiftChance):
+    for index in range(len(individual)):
+        prob = random.random()
         if prob < mutateSwitchChance:
-            individual = mutateSwitchNodes(individual, indpb)
+            individual = mutateSwitchNodes(index, individual)
         if prob < mutateConflictChance:
-            individual = mutateSwitchConflictNodes(individual, indpb)
+            individual = mutateSwitchConflictNodes(index, individual)
         if prob < mutateShiftChance:
-            individual = mutateShiftBlock(individual, indpb)
+            individual = mutateShiftBlock(index, individual)
     return individual
 
 #custom genetic functions
-def mutateSwitchNodes(individual, indpb):
-    for index in range(len(individual)):
-        blockIndex = gcp.getBlock(index)
-        confIndex = random.randrange(9 * blockIndex, 9 * (blockIndex + 1))
-        isFixed = gcp.isFixed(index) or gcp.isFixed(confIndex)
-        if not isFixed and confIndex != -1 and random.random() < indpb:
-            savedColor = individual[index]
-            individual[index] = individual[confIndex]
-            individual[confIndex] = savedColor
+def mutateSwitchNodes(index, individual):
+    blockIndex = gcp.getBlock(index)
+    confIndex = random.randrange(9 * blockIndex, 9 * (blockIndex + 1))
+    isFixed = gcp.isFixed(index) or gcp.isFixed(confIndex)
+    if not isFixed and confIndex != -1:
+        savedColor = individual[index]
+        individual[index] = individual[confIndex]
+        individual[confIndex] = savedColor
     return individual
 
 #mutating by switching conflict nodes
-def mutateSwitchConflictNodes(individual, indpb):
-    for index in range(len(individual)):
-        confIndex = gcp.isInViolationInBlock(index, individual)
-        isFixed = gcp.isFixed(index) or gcp.isFixed(confIndex)
-        if not isFixed and confIndex != -1 and random.random() < indpb:
-            savedColor = individual[index]
-            individual[index] = individual[confIndex]
-            individual[confIndex] = savedColor
+def mutateSwitchConflictNodes(index, individual):
+    confIndex = gcp.isInViolationInBlock(index, individual)
+    isFixed = gcp.isFixed(index) or gcp.isFixed(confIndex)
+    if not isFixed and confIndex != -1:
+        savedColor = individual[index]
+        individual[index] = individual[confIndex]
+        individual[confIndex] = savedColor
     return individual
 
 # check if number is fixed (non mutable)
@@ -147,15 +145,12 @@ def blockRotation(oriBlock, indexList):
     return newBlock
 
 #mutating by shifting block with node
-def mutateShiftBlock(individual, indpb):
-    for index in range(len(individual)):
-        blockIndex = gcp.getBlock(index)
-        if random.random() < indpb:
-            blockIndex = gcp.getBlock(index)
-            oriBlock = individual[blockIndex * 9:(blockIndex + 1) * 9]
-            indexList = [(i - blockIndex * 9) for i in range(blockIndex * 9, (blockIndex + 1) * 9) if gcp.isFixed(i)]
-            newBlock = blockRotation(oriBlock, indexList)
-            individual[blockIndex * 9:(blockIndex + 1) * 9] = newBlock
+def mutateShiftBlock(index, individual):
+    blockIndex = gcp.getBlock(index)
+    oriBlock = individual[blockIndex * 9:(blockIndex + 1) * 9]
+    indexList = [(i - blockIndex * 9) for i in range(blockIndex * 9, (blockIndex + 1) * 9) if gcp.isFixed(i)]
+    newBlock = blockRotation(oriBlock, indexList)
+    individual[blockIndex * 9:(blockIndex + 1) * 9] = newBlock
     return individual
 
 #crossing one point on subgraphs
@@ -184,8 +179,8 @@ toolbox.register("select", tools.selTournament, tournsize=2)
 #toolbox.register("mate", crossOnePoint)
 toolbox.register("mate", crossTwoPoints)
 
-toolbox.register("mutate", allMutations, mutateSwitchChance=P_M_SWITCH, mutateConflictChance=P_M_CONFLICT, 
-mutateShiftChance=P_M_SHIFT, indpb=1.0/len(gcp))
+toolbox.register("mutate", allMutations, mutateSwitchChance=P_M_SWITCH, mutateConflictChance=P_M_CONFLICT_SWITCH, 
+mutateShiftChance=P_M_SHIFT)
 
 # show statistics
 def showConv(logbooks, runs):
@@ -243,7 +238,7 @@ def printResult(hofs, logbooks, runs):
     # print info for best solution found:
     best = hofs[0].items[0]
     for hof in hofs:
-        if best.fitness.values[0] < hof.items[0].fitness.values[0]:
+        if best.fitness.values[0] > hof.items[0].fitness.values[0]:
             best = hof.items[0]
 
     print("-- Best Individual = ", best)

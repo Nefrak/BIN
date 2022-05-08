@@ -1,0 +1,13 @@
+# Genetic Algorithm constants:
+POPULATION_SIZE = 150
+P_CROSSOVER = 0.3  
+P_MUTATION = 0.7  
+P_M_SWITCH = 0.1  
+P_M_CONFLICT_SWITCH = 0.2  
+P_M_SHIFT = 0.01    
+RUNS = 20
+MAX_GENERATIONS = 100
+HALL_OF_FAME_SIZE = 5
+
+# set the random seed:
+RANDOM_SEED = 89

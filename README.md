@@ -30,7 +30,7 @@ Parametry je možné upravit v solveGraphColor.py
 - šance křížení: P_CROSSOVER
 - šance provedení mutace na jednotlivci: P_MUTATION
     - šance prohození s náhodnou nodou: P_M_SWITCH
-    - šance prohození s konfliktní nodou: P_M_CONFLICT
+    - šance prohození s konfliktní nodou: P_M_CONFLICT_SWITCH
     - šance posunu bloku s nodou: P_M_SHIFT
 - počet běhů: RUNS
 - generace: MAX_GENERATIONS
